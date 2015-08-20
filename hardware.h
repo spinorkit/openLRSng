@@ -1424,3 +1424,151 @@ void setupRfmInterrupt()
 }
 
 #endif
+
+#if (BOARD_TYPE == 10)  //Flytron/HK Orange Tx mod for Input Capture PPM input
+#if (__AVR_ATmega328P__ != 1) || (F_CPU != 16000000)
+#warning Possibly wrong board selected, select Arduino Pro/Pro Mini 5V/16MHz w/ ATMega328
+#endif
+
+#if (COMPILE_TX == 1)
+
+#define USE_ICP1 // use ICP1 for PPM input for less jitter
+
+
+//#define PPM_IN           3
+#define PPM_IN 8 // ICP1
+
+#define RF_OUT_INDICATOR A0
+#define BUZZER_ACT       10
+#define BTN              11
+#define TX_AIN0          A4 // SDA
+#define TX_AIN1          A5 // SCL
+#define TX_MODE1         5
+//#define TX_MODE2         6
+//#define PPM_Pin_Interrupt_Setup  PCMSK2 = 0x08;PCICR|=(1<<PCIE2);
+//#define PPM_Signal_Interrupt PCINT2_vect
+//#define PPM_Signal_Edge_Check ((PIND & 0x08)==0x08)
+
+void buzzerInit()
+{
+	pinMode(BUZZER_ACT, OUTPUT);
+	digitalWrite(BUZZER_ACT, LOW);
+}
+
+void buzzerOn(uint16_t freq)
+{
+	if (freq) {
+		digitalWrite(BUZZER_ACT,HIGH);
+		} else {
+		digitalWrite(BUZZER_ACT,LOW);
+	}
+}
+
+#define buzzerOff(foo) buzzerOn(0)
+
+#else // RX operation
+#define USE_OCR1B // OC1A is used for RFM22, so we use OC1B instead which is buzzer ;)
+#define PPM_OUT 10 // OC1B this is the buzzer input
+#define RSSI_OUT 3 // PD3 OC2B -this is the PPM pin on the radio connection
+
+#define OUTPUTS 7 // outputs available
+
+const pinMask_t OUTPUT_MASKS[OUTPUTS] = {
+	{0x04,0x00,0x00},{0x00,0x00,0x08},{0x00,0x01,0x00}, // PPM, RSSI, CH1
+	{0x00,0x10,0x00},{0x00,0x20,0x00},{0x00,0x00,0x01}, // SDA, SCL, RXD
+	{0x00,0x00,0x02},                                   // TXD
+};
+
+const uint8_t OUTPUT_PIN[OUTPUTS] = { 10, 3, A0, A4, A5, 0, 1};
+
+#define PPM_OUTPUT  0
+#define RSSI_OUTPUT 1
+#define LLIND_OUTPUT 2
+#define ANALOG0_OUTPUT 3
+#define ANALOG1_OUTPUT 4
+#define SDA_OUTPUT 3
+#define SCL_OUTPUT 4
+#define RXD_OUTPUT 5
+#define TXD_OUTPUT 6
+
+struct rxSpecialPinMap rxSpecialPins[] = {
+	{ 0, PINMAP_PPM},
+	{ 1, PINMAP_LBEEP},
+	{ 1, PINMAP_RSSI},
+	{ 2, PINMAP_LLIND},
+	{ 3, PINMAP_SDA},
+	{ 3, PINMAP_ANALOG}, // AIN0
+	{ 4, PINMAP_SCL},
+	{ 4, PINMAP_ANALOG}, // AIN1
+	{ 5, PINMAP_RXD},
+	{ 6, PINMAP_TXD},
+	{ 6, PINMAP_SPKTRM},
+	{ 6, PINMAP_SBUS},
+	{ 6, PINMAP_SUMD},
+};
+
+void rxInitHWConfig()
+{
+	rx_config.rx_type = RX_FLYTRONM3;
+	rx_config.pinMapping[0] = PINMAP_PPM;
+	rx_config.pinMapping[1] = PINMAP_RSSI;
+	rx_config.pinMapping[2] = 0;
+	rx_config.pinMapping[3] = PINMAP_ANALOG;
+	rx_config.pinMapping[4] = PINMAP_ANALOG;
+	rx_config.pinMapping[5] = PINMAP_RXD;
+	rx_config.pinMapping[6] = PINMAP_TXD;
+}
+#endif
+
+#define TelemetrySerial Serial
+
+#define Red_LED          13
+#define Green_LED        12
+
+#define Red_LED_ON  PORTB |= _BV(5);
+#define Red_LED_OFF  PORTB &= ~_BV(5);
+
+#define Green_LED_ON   PORTB |= _BV(4);
+#define Green_LED_OFF  PORTB &= ~_BV(4);
+
+//## RFM22B Pinouts for Public Edition (M2)
+#define  nIRQ_1 (PIND & 0x04)==0x04 //D2
+#define  nIRQ_0 (PIND & 0x04)==0x00 //D2
+
+#define  nSEL_on PORTD |= (1<<4) //D4
+#define  nSEL_off PORTD &= 0xEF //D4
+
+#define  SCK_on PORTD |= (1<<7) //D7
+#define  SCK_off PORTD &= 0x7F //D7
+
+//#define  SDI_on PORTB |= (1<<0) //B0
+//#define  SDI_off PORTB &= 0xFE //B0
+#define  SDI_on PORTD |= (1<<6) //D6
+#define  SDI_off PORTD &= 0xBF  //D6
+
+#define  SDO_1 (PINB & 0x02) == 0x02 //B1
+#define  SDO_0 (PINB & 0x02) == 0x00 //B1
+
+#define SDO_pin 9
+#define SDI_pin 6     //PD6 (was 8)
+#define SCLK_pin 7
+#define IRQ_pin 2
+#define nSel_pin 4
+
+void setupSPI()
+{
+	pinMode(SDO_pin, INPUT);   //SDO
+	pinMode(SDI_pin, OUTPUT);   //SDI
+	pinMode(SCLK_pin, OUTPUT);   //SCLK
+	pinMode(IRQ_pin, INPUT);   //IRQ
+	pinMode(nSel_pin, OUTPUT);   //nSEL
+}
+
+#define IRQ_interrupt 0
+void setupRfmInterrupt()
+{
+	attachInterrupt(IRQ_interrupt, RFM22B_Int, FALLING);
+}
+
+#endif
+
